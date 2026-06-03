@@ -138,11 +138,13 @@
     }
 
     // LUỒNG GỌI DATA TỪ XA CHẠY QUA FETCH ENGINE
-    window.addEventListener('load', function() {
-      var date = new Date(); var dauThang = new Date(date.getFullYear(), date.getMonth(), 1).toISOString().split('T')[0]; var cuoiThang = new Date(date.getFullYear(), date.getMonth() + 1, 0).toISOString().split('T')[0]; var homNay = date.toISOString().split('T')[0];
-      if(document.getElementById('nFilterTu')) document.getElementById('nFilterTu').value = dauThang; if(document.getElementById('nFilterDen')) document.getElementById('nFilterDen').value = cuoiThang; if(document.getElementById('rptTu')) document.getElementById('rptTu').value = dauThang; if(document.getElementById('rptDen')) document.getElementById('rptDen').value = cuoiThang; if(document.getElementById('nHanSd')) document.getElementById('nHanSd').value = homNay;
-      taiDuLieuHeThong(); 
-    });
+   // ĐOẠN CODE ĐÃ SỬA CHUẨN XÁC:
+window.addEventListener('load', function() {
+  var date = new Date(); var dauThang = new Date(date.getFullYear(), date.getMonth(), 1).toISOString().split('T')[0]; var cuoiThang = new Date(date.getFullYear(), date.getMonth() + 1, 0).toISOString().split('T')[0]; var homNay = date.toISOString().split('T')[0];
+  if(document.getElementById('nFilterTu')) document.getElementById('nFilterTu').value = dauThang; if(document.getElementById('nFilterDen')) document.getElementById('nFilterDen').value = cuoiThang; if(document.getElementById('rptTu')) document.getElementById('rptTu').value = dauThang; if(document.getElementById('rptDen')) document.getElementById('rptDen').value = cuoiThang; if(document.getElementById('nHanSd')) document.getElementById('nHanSd').value = homNay;
+  
+  taiDuLieuHeThong(); // <--- Sửa thành chữ này viết liền chuẩn chỉ anh nhé
+});
 
     function taiDuLieuHeThong() { 
       fetch(`${URL_API_ENGINE}?action=getData`)
