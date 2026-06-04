@@ -106,18 +106,47 @@
 
     function tatCameraQuetPOS() { if (html5QrcodeScanner && laCameraDangChay) { html5QrcodeScanner.stop().then(() => { document.getElementById('cameraScannerBox').style.display = 'none'; laCameraDangChay = false; }).catch(err => { document.getElementById('cameraScannerBox').style.display = 'none'; laCameraDangChay = false; }); } else { document.getElementById('cameraScannerBox').style.display = 'none'; } }
     
-    function xuLyKhopMaVachQuetTudong(maCanQuet) { 
-      if (!DATABASE.DanhMucHangHoa) return; 
-      var maSach = String(maCanQuet).replace(/[\r\n\t]/g, "").trim();
-      var product = DATABASE.DanhMucHangHoa.find(p => String(p["Mã Hàng"]).replace(/[\r\n\t]/g, "").trim() === maSach); 
-      if (product) { 
-        var exist = GIO_HANG.find(g => String(g.maHang).trim() === maSach); 
-        if (exist) { exist.sl += 1; } else { GIO_HANG.push({ maHang: product["Mã Hàng"], tenHang: product["Tên Hàng"], sl: 1, donGia: Number(product["Giá Bán"]) }); } 
-        renderGioHang(); 
-      } else {
-        alert("Mã vạch [" + maSach + "] chưa đăng ký trong danh mục sản phẩm Sheets!");
-      }
-    }
+   function xuLyKhopMaVachQuetTudong(maCanQuet) { 
+  if (!DATABASE.DanhMucHangHoa || DATABASE.DanhMucHangHoa.length === 0) {
+    alert("Hệ thống chưa tải xong danh mục từ Sheets. Anh vui lòng đợi 2 giây!");
+    return;
+  }
+
+  // 1. CHUẨN HÓA MÃ CAMERA: Ép về dạng chuỗi văn bản thuần, xóa sạch mọi ký tự điều khiển ẩn
+  var maSach = String(maCanQuet).replace(/[\r\n\t]/g, "").replace(/\s+/g, "").trim();
+  
+  // 2. SO KHỚP THÔNG MINH: Chuyển cả hai bên về dạng chuỗi văn bản thuần để loại bỏ lệch định dạng Số/Chữ
+  var product = DATABASE.DanhMucHangHoa.find(p => {
+    if (!p["Mã Hàng"]) return false;
+    var maTrongSheet = String(p["Mã Hàng"]).replace(/[\r\n\t]/g, "").replace(/\s+/g, "").trim();
+    return maTrongSheet === maSach;
+  }); 
+  
+  if (product) { 
+    // Tìm xem sản phẩm đã nằm trong giỏ hàng chưa
+    var exist = GIO_HANG.find(g => {
+      if (!g.maHang) return false;
+      return String(g.maHang).replace(/[\r\n\t]/g, "").replace(/\s+/g, "").trim() === maSach;
+    });
+
+    if (exist) { 
+      exist.sl += 1; 
+    } else { 
+      GIO_HANG.push({ 
+        maHang: product["Mã Hàng"], 
+        tenHang: product["Tên Hàng"], 
+        sl: 1, 
+        donGia: Number(product["Giá Bán"] || 0) 
+      }); 
+    } 
+    renderGioHang(); 
+  } else {
+    // BẮP BẪY CẢNH BÁO: Báo động ngay lập tức nếu camera đọc được số nhưng Sheets chưa khai báo
+    alert("⚠️ CẢNH BÁO DANH MỤC:\n\n" +
+          "Hệ thống quét được mã: " + maSach + "\n\n" +
+          "Tuy nhiên mã số này chưa có trong cột 'Mã Hàng' của sheet DanhMucHangHoa, hoặc cột này đang bị lưu sai số!");
+  }
+}
     
     function switchPage(e, pageId) {
       if (e && typeof e.preventDefault === 'function') { e.preventDefault(); e.stopPropagation(); }
