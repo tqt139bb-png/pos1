@@ -67,69 +67,95 @@
       return "https://img.vietqr.io/image/" + maNganHang + "-" + soTaiKhoan + "-compact.png?amount=" + soTienThu + "&addInfo=" + encodeURIComponent("DADA THANH TOAN " + (maDonXuat || "POS")); 
     }
 
-    function batDauQuetCameraPOS() {
-      var boxCam = document.getElementById('cameraScannerBox');
-      if (laCameraDangChay) { tatCameraQuetPOS(); return; }
-      boxCam.style.display = 'block';
-      html5QrcodeScanner = new Html5Qrcode("readerCamPOS");
+   // =========================================================================
+// 🚀 CẤU HÌNH CAMERA SIÊU NHẠY & THÔNG MINH NHƯ MÁY QUÉT CHUYÊN NGHIỆP
+// =========================================================================
+function batDauQuetCameraPOS() {
+  var boxCam = document.getElementById('cameraScannerBox');
+  if (laCameraDangChay) { tatCameraQuetPOS(); return; }
+  boxCam.style.display = 'block';
+
+  html5QrcodeScanner = new Html5Qrcode("readerCamPOS");
+  
+  // Cấu hình phần cứng tối ưu sâu cho quét sọc tuyến tính EAN-13
+  const cameraConfig = {
+    fps: 30, // Ép camera bắt tối đa 30 khung hình/giây để quét quét chớp nhoáng
+    qrbox: function(viewfinderWidth, viewfinderHeight) {
+      // Tạo khung ngắm dẹt ngang siêu chuẩn (Rộng 85%, Cao 100px) ép máy quét tập trung giải mã vạch sọc
+      var width = Math.floor(viewfinderWidth * 0.85);
+      return { width: width, height: 100 };
+    },
+    aspectRatio: 1.777778, // Ép luồng màn hình 16:9 chuẩn HD để vạch sọc không bị méo tỉ lệ
+    videoConstraints: {
+      facingMode: "environment",
+      width: { ideal: 1280 }, // Độ phân giải vàng giúp làm rõ các sọc vạch nhỏ, mờ
+      height: { ideal: 720 },
+      focusMode: "continuous", // Bật chế độ tự động lấy nét liên tục của iPhone
+      exposureMode: "continuous" // Tự động bù sáng khi nhân viên quét trong quầy tối
+    },
+    formatsToSupport: [
+      Html5QrcodeSupportedFormats.EAN_13, // Ưu tiên số 1 cho tạp hóa Việt Nam
+      Html5QrcodeSupportedFormats.EAN_8,
+      Html5QrcodeSupportedFormats.CODE_128, // Quét các mã thùng hàng lớn
+      Html5QrcodeSupportedFormats.UPC_A
+    ]
+  };
+
+  // Khởi chạy luồng camera sau
+  html5QrcodeScanner.start(
+    { facingMode: "environment" }, 
+    cameraConfig, 
+    function(qrCodeMessage) {
+      // Khóa chống quét trùng khi đang xử lý dữ liệu đơn hàng
+      if (dangXuLyMaQuet) return; 
+      dangXuLyMaQuet = true; 
+
+      document.getElementById('bBarcodeScan').value = qrCodeMessage;
+      playBeepSoundSoundThongMinh(); // Kêu tít lập tức
+      xuLyKhopMaVachQuetTudong(qrCodeMessage);
       
-      const cameraConfig = {
-        fps: 25, qrbox: { width: 300, height: 120 }, aspectRatio: 1.777778,
-        formatsToSupport: [Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8, Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.UPC_A]
-      };
+      // Nháy viền khung camera xanh lá lập tức báo hiệu khớp thành công
+      var boxCamElement = document.getElementById('cameraScannerBox');
+      if (boxCamElement) boxCamElement.style.borderColor = "#198754";
+      
+      // Tự động giải phóng cờ sau 1.5 giây
+      setTimeout(function() {
+        dangXuLyMaQuet = false;
+        if(document.getElementById('cameraScannerBox')) {
+          document.getElementById('cameraScannerBox').style.borderColor = "#dc3545";
+        }
+      }, 1500);
+    },
+    function(err) { /* Chạy đa luồng liên tục giải mã vạch */ }
+  )
+  .then(() => { laCameraDangChay = true; })
+  .catch(err => {
+    console.error("Lỗi phần cứng camera:", err);
+    laCameraDangChay = false;
+    boxCam.style.display = 'none';
+  });
+}
 
-      html5QrcodeScanner.start(
-        { facingMode: "environment" }, cameraConfig, 
-        function(qrCodeMessage) {
-          if (dangXuLyMaQuet) return; dangXuLyMaQuet = true; 
-          document.getElementById('bBarcodeScan').value = qrCodeMessage;
-          playBeepSoundSoundThongMinh(); 
-          xuLyKhopMaVachQuetTudong(qrCodeMessage);
-          
-          var boxCamElement = document.getElementById('cameraScannerBox');
-          if (boxCamElement) boxCamElement.style.borderColor = "#198754";
-          setTimeout(function() { dangXuLyMaQuet = false; if(boxCamElement) boxCamElement.style.borderColor = "#dc3545"; }, 1800);
-        },
-        function(err) {}
-      ).then(() => { laCameraDangChay = true; }).catch(err => {
-        alert("Lỗi kết nối camera phần cứng.");
-      });
-    }
-
-    function playBeepSoundSoundThongMinh() {
-      try {
-        var audioCtx = new (window.AudioContext || window.webkitAudioContext)(); var oscillator = audioCtx.createOscillator(); var gainNode = audioCtx.createGain();
-        oscillator.type = 'sine'; oscillator.frequency.setValueAtTime(1000, audioCtx.currentTime); gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
-        oscillator.connect(gainNode); gainNode.connect(audioCtx.destination); oscillator.start(); oscillator.stop(audioCtx.currentTime + 0.06);
-      } catch(e) {}
-    }
-
-    function tatCameraQuetPOS() { if (html5QrcodeScanner && laCameraDangChay) { html5QrcodeScanner.stop().then(() => { document.getElementById('cameraScannerBox').style.display = 'none'; laCameraDangChay = false; }).catch(err => { document.getElementById('cameraScannerBox').style.display = 'none'; laCameraDangChay = false; }); } else { document.getElementById('cameraScannerBox').style.display = 'none'; } }
-    
+// =========================================================================
+// HÀM XỬ LÝ KHỚP LỆNH TỰ ĐỘNG NGẮT CAMERA KHI ĐỌC THÀNH CÔNG
+// =========================================================================
 function xuLyKhopMaVachQuetTudong(maCanQuet) { 
   if (!DATABASE.DanhMucHangHoa || DATABASE.DanhMucHangHoa.length === 0) {
-    alert("Hệ thống chưa tải xong dữ liệu từ Sheets. Anh vui lòng đợi 2 giây!");
+    alert("Hệ thống đang tải dữ liệu. Anh vui lòng đợi 2 giây!");
     return; 
   }
 
-  // 1. CHUẨN HÓA MÃ TỪ CAMERA: Xóa sạch khoảng trắng, xuống dòng, tab
+  // Chuẩn hóa xóa sạch khoảng trắng và các ký tự điều khiển ẩn tránh lệch ký tự chữ/số
   var maSach = String(maCanQuet).replace(/[\r\n\t]/g, "").replace(/\s+/g, "").trim();
   
-  // KHẮC PHỤC LỖI UPC-A: Nếu mã dài 13 ký tự và bắt đầu bằng số 0, nhưng đầu số thực tế là 893 (Việt Nam)
-  // Hệ thống sẽ tự động cắt bỏ số 0 ở đầu để khớp chuẩn xác với mã vạch 12 số trong Sheets Excel
+  // Khắc phục lỗi tự chèn số 0 của định dạng ngắn UPC-A 12 số
   if (maSach.length === 13 && maSach.startsWith("0")) {
-    // Kiểm tra xem nếu bỏ số 0 đi thì có phải là mã hàng của mình không
     var maThuNghiem = maSach.substring(1);
     var timThu = DATABASE.DanhMucHangHoa.find(p => p["Mã Hàng"] && String(p["Mã Hàng"]).trim() === maThuNghiem);
-    if (timThu) {
-      maSach = maThuNghiem; // Chấp nhận mã đã cắt bỏ số 0 thừa
-    }
+    if (timThu) maSach = maThuNghiem;
   }
-  
-  // BẪY POP-UP KIỂM TRA thực tế trên màn hình iPhone
-  alert("-> GOOGLE LENS ĐÃ NHẬN DẠNG MÃ: [" + maSach + "] - Độ dài: " + maSach.length + " ký tự.");
 
-  // 2. TIẾN HÀNH SO KHỚP VỚI CƠ SỞ DỮ LIỆU EXCEL
+  // Tìm kiếm sản phẩm trong danh mục Sheets đã được đồng bộ về máy
   var product = DATABASE.DanhMucHangHoa.find(p => {
     if (!p["Mã Hàng"]) return false;
     var maTrongSheet = String(p["Mã Hàng"]).replace(/[\r\n\t]/g, "").replace(/\s+/g, "").trim();
@@ -148,17 +174,18 @@ function xuLyKhopMaVachQuetTudong(maCanQuet) {
         donGia: Number(product["Giá Bán"] || 0) 
       }); 
     } 
-    renderGioHang(); 
-    playBeepSoundSoundThongMinh(); // Kêu tít tít báo nhận đơn hàng thành công
-    // =========================================================================
-    // 🚀 Đã bổ sung: TỰ ĐỘNG TẮT CAMERA NGAY KHI KHỚP MÃ THÀNH CÔNG
-    // =========================================================================
+    renderGioHang(); // Render lại giao diện giỏ hàng
+    
+    // 🔥 TỰ ĐỘNG ĐÓNG KHUNG CAMERA NGAY KHI PHÁT HIỆN SẢN PHẨM THÀNH CÔNG
     setTimeout(function() {
       tatCameraQuetPOS(); 
-    }, 300); // Trễ nhẹ 300 mili-giây để nhân viên kịp thấy hiệu ứng viền xanh lá báo thành công
+    }, 250); // Trễ nhẹ 250ms cực ngắn để tạo cảm giác mượt mà trước khi đóng hộp video
+    
   } else {
-    // Thông báo nếu quét được mã nhưng trong Sheets của anh gõ sai số hoặc thiếu số
-    alert("⚠️ KHÔNG KHỚP SỔ SÁCH:\n\nMã vạch camera đọc được là: " + maSach + "\n\nMã này chưa được đăng ký ở cột 'Mã Hàng' trong sheet DanhMucHangHoa. Anh hãy kiểm tra lại file Excel nhé!");
+    // Nếu quét trúng mã lạ chưa khai báo trong Sheets Excel, giữ nguyên camera và thông báo chi tiết
+    alert("⚠️ MÃ VẠCH LẠ (CHƯA ĐĂNG KÝ):\n\n" +
+          "Máy quét đọc được mã số: " + maSach + "\n\n" +
+          "Mã này chưa được khai báo ở cột 'Mã Hàng' của sheet DanhMucHangHoa trên file Excel của anh!");
   }
 }
     
