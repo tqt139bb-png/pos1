@@ -112,19 +112,24 @@ function xuLyKhopMaVachQuetTudong(maCanQuet) {
     return; 
   }
 
-  // 1. CHUẨN HÓA MÃ TỪ CAMERA: Ép kiểu chuỗi văn bản thuần, xóa sạch mọi khoảng trắng và ký tự ẩn
+  // 1. CHUẨN HÓA MÃ TỪ CAMERA: Xóa sạch khoảng trắng, xuống dòng, tab
   var maSach = String(maCanQuet).replace(/[\r\n\t]/g, "").replace(/\s+/g, "").trim();
   
-  // XỬ LÝ ĐẶC BIỆT CHO MÃ UPC-A (12 SỐ): Nếu thư viện tự chèn số 0 vào đầu mã EAN-13 giả lập
+  // KHẮC PHỤC LỖI UPC-A: Nếu mã dài 13 ký tự và bắt đầu bằng số 0, nhưng đầu số thực tế là 893 (Việt Nam)
+  // Hệ thống sẽ tự động cắt bỏ số 0 ở đầu để khớp chuẩn xác với mã vạch 12 số trong Sheets Excel
   if (maSach.length === 13 && maSach.startsWith("0")) {
+    // Kiểm tra xem nếu bỏ số 0 đi thì có phải là mã hàng của mình không
     var maThuNghiem = maSach.substring(1);
     var timThu = DATABASE.DanhMucHangHoa.find(p => p["Mã Hàng"] && String(p["Mã Hàng"]).trim() === maThuNghiem);
     if (timThu) {
-      maSach = maThuNghiem; // Cắt bỏ số 0 thừa để khớp với mã 12 số trong Sheets
+      maSach = maThuNghiem; // Chấp nhận mã đã cắt bỏ số 0 thừa
     }
   }
+  
+  // BẪY POP-UP KIỂM TRA thực tế trên màn hình iPhone
+  alert("-> GOOGLE LENS ĐÃ NHẬN DẠNG MÃ: [" + maSach + "] - Độ dài: " + maSach.length + " ký tự.");
 
-  // 2. TIẾN HÀNH SO KHỚP VỚI DANH MỤC HÀNG HÓA TRÊN GOOGLE SHEETS
+  // 2. TIẾN HÀNH SO KHỚP VỚI CƠ SỞ DỮ LIỆU EXCEL
   var product = DATABASE.DanhMucHangHoa.find(p => {
     if (!p["Mã Hàng"]) return false;
     var maTrongSheet = String(p["Mã Hàng"]).replace(/[\r\n\t]/g, "").replace(/\s+/g, "").trim();
@@ -132,7 +137,6 @@ function xuLyKhopMaVachQuetTudong(maCanQuet) {
   }); 
   
   if (product) { 
-    // Tìm kiếm xem mặt hàng đã có trong giỏ chưa để tăng số lượng (SL)
     var exist = GIO_HANG.find(g => String(g.maHang).trim() === String(product["Mã Hàng"]).trim()); 
     if (exist) { 
       exist.sl += 1; 
@@ -144,21 +148,17 @@ function xuLyKhopMaVachQuetTudong(maCanQuet) {
         donGia: Number(product["Giá Bán"] || 0) 
       }); 
     } 
-    renderGioHang(); // Cập nhật lại bảng tính tiền
-    playBeepSoundSoundThongMinh(); // Phát tiếng "Tít" siêu thị thành công
-    
+    renderGioHang(); 
+    playBeepSoundSoundThongMinh(); // Kêu tít tít báo nhận đơn hàng thành công
     // =========================================================================
     // 🚀 Đã bổ sung: TỰ ĐỘNG TẮT CAMERA NGAY KHI KHỚP MÃ THÀNH CÔNG
     // =========================================================================
     setTimeout(function() {
       tatCameraQuetPOS(); 
     }, 300); // Trễ nhẹ 300 mili-giây để nhân viên kịp thấy hiệu ứng viền xanh lá báo thành công
-    
   } else {
-    // Nếu quét ra số nhưng tìm trong danh mục Sheets không thấy thì giữ nguyên camera và thông báo
-    alert("⚠️ MÃ VẠCH CHƯA ĐĂNG KÝ:\n\n" +
-          "Google Lens đọc được mã: " + maSach + "\n\n" +
-          "Mã này chưa khớp với bất kỳ sản phẩm nào trong cột 'Mã Hàng' của bảng DanhMucHangHoa trên file Sheets. Anh vui lòng kiểm tra lại dữ liệu!");
+    // Thông báo nếu quét được mã nhưng trong Sheets của anh gõ sai số hoặc thiếu số
+    alert("⚠️ KHÔNG KHỚP SỔ SÁCH:\n\nMã vạch camera đọc được là: " + maSach + "\n\nMã này chưa được đăng ký ở cột 'Mã Hàng' trong sheet DanhMucHangHoa. Anh hãy kiểm tra lại file Excel nhé!");
   }
 }
     
