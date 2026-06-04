@@ -106,16 +106,20 @@
 
     function tatCameraQuetPOS() { if (html5QrcodeScanner && laCameraDangChay) { html5QrcodeScanner.stop().then(() => { document.getElementById('cameraScannerBox').style.display = 'none'; laCameraDangChay = false; }).catch(err => { document.getElementById('cameraScannerBox').style.display = 'none'; laCameraDangChay = false; }); } else { document.getElementById('cameraScannerBox').style.display = 'none'; } }
     
-   function xuLyKhopMaVachQuetTudong(maCanQuet) { 
-  if (!DATABASE.DanhMucHangHoa || DATABASE.DanhMucHangHoa.length === 0) {
-    alert("Hệ thống chưa tải xong danh mục từ Sheets. Anh vui lòng đợi 2 giây!");
-    return;
-  }
-
-  // 1. CHUẨN HÓA MÃ CAMERA: Ép về dạng chuỗi văn bản thuần, xóa sạch mọi ký tự điều khiển ẩn
+function xuLyKhopMaVachQuetTudong(maCanQuet) { 
+  // 1. CHUẨN HÓA MÃ TỪ CAMERA: Xóa sạch khoảng trắng (\s), xuống dòng (\n\r), tab (\t)
   var maSach = String(maCanQuet).replace(/[\r\n\t]/g, "").replace(/\s+/g, "").trim();
   
-  // 2. SO KHỚP THÔNG MINH: Chuyển cả hai bên về dạng chuỗi văn bản thuần để loại bỏ lệch định dạng Số/Chữ
+  // BẪY KIỂM TRA: Hiển thị thông báo để anh biết camera thực tế đang đọc ra số mấy
+  alert("-> CAMERA ĐÃ ĐỌC ĐƯỢC MÃ: [" + maSach + "] - Độ dài: " + maSach.length + " ký tự.");
+  console.log("--> [DEBUG] CAMERA SCAN: '" + maSach + "'");
+  
+  if (!DATABASE.DanhMucHangHoa || DATABASE.DanhMucHangHoa.length === 0) {
+    alert("LỖI: Hệ thống chưa tải xong dữ liệu từ Sheets hoặc danh mục đang trống hoàn toàn!");
+    return; 
+  }
+  
+  // 2. SO KHỚP THÔNG MINH: Ép cả mã trong Sheets về String và xóa khoảng trắng để đối chiếu
   var product = DATABASE.DanhMucHangHoa.find(p => {
     if (!p["Mã Hàng"]) return false;
     var maTrongSheet = String(p["Mã Hàng"]).replace(/[\r\n\t]/g, "").replace(/\s+/g, "").trim();
@@ -123,14 +127,11 @@
   }); 
   
   if (product) { 
-    // Tìm xem sản phẩm đã nằm trong giỏ hàng chưa
-    var exist = GIO_HANG.find(g => {
-      if (!g.maHang) return false;
-      return String(g.maHang).replace(/[\r\n\t]/g, "").replace(/\s+/g, "").trim() === maSach;
-    });
-
+    // Tìm xem mặt hàng này đã có trong giỏ hàng chưa để tăng số lượng
+    var exist = GIO_HANG.find(g => String(g.maHang).trim() === String(product["Mã Hàng"]).trim()); 
     if (exist) { 
       exist.sl += 1; 
+      console.log("Tăng số lượng sản phẩm: " + exist.tenHang);
     } else { 
       GIO_HANG.push({ 
         maHang: product["Mã Hàng"], 
@@ -138,13 +139,15 @@
         sl: 1, 
         donGia: Number(product["Giá Bán"] || 0) 
       }); 
+      console.log("Thêm mới sản phẩm vào giỏ hàng.");
     } 
     renderGioHang(); 
+    playBeepSoundSoundThongMinh(); // Phát tiếng bíp siêu thị khi khớp thành công
   } else {
-    // BẮP BẪY CẢNH BÁO: Báo động ngay lập tức nếu camera đọc được số nhưng Sheets chưa khai báo
-    alert("⚠️ CẢNH BÁO DANH MỤC:\n\n" +
-          "Hệ thống quét được mã: " + maSach + "\n\n" +
-          "Tuy nhiên mã số này chưa có trong cột 'Mã Hàng' của sheet DanhMucHangHoa, hoặc cột này đang bị lưu sai số!");
+    // BẪY POP-UP 2: Xuất hiện nếu camera đọc được số nhưng tìm trong danh mục Excel không thấy
+    alert("⚠️ KHÔNG TÌM THẤY TRONG SHEETS:\n\n" +
+          "Mã vạch camera đọc được là: " + maSach + "\n\n" +
+          "Hệ thống không tìm thấy mã này trong cột 'Mã Hàng' của bảng DanhMucHangHoa trên file Excel. Anh vui lòng kiểm tra lại bảng danh mục!");
   }
 }
     
